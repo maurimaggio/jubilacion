@@ -207,14 +207,14 @@
         <div class="row2">
           <div class="field">
             <label for="tna">Rendimiento esperado (TNA USD)</label>
-            <div class="inputbox"><input id="tna" type="number" min="0" max="25" step="0.25" value="6"><span>%</span></div>
+            <div class="inputbox"><input id="tna" type="number" min="0" max="25" step="0.25" value="8"><span>%</span></div>
           </div>
           <div class="field">
             <label for="infl">Inflación USD anual</label>
-            <div class="inputbox"><input id="infl" type="number" min="0" max="10" step="0.25" value="2.5"><span>%</span></div>
+            <div class="inputbox"><input id="infl" type="number" min="0" max="10" step="0.25" value="2"><span>%</span></div>
           </div>
         </div>
-        <p class="hint" style="margin-bottom:16px">6% TNA en dólares es el orden de magnitud de una cartera diversificada de renta fija corporativa y soberana hard dollar. La inflación se descuenta para razonar en dólares de hoy.</p>
+        <p class="hint" style="margin-bottom:16px">8% TNA en dólares es el orden de magnitud de una cartera diversificada de renta fija corporativa y soberana hard dollar, con horizonte largo. La inflación se descuenta para razonar en dólares de hoy.</p>
 
         <label style="display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:6px">Estrategia de retiro</label>
         <div class="seg" id="modo">
@@ -320,13 +320,24 @@
           </table>
         </div>
 
-        <div class="divider"></div>
+      </section>
 
-        <div class="field" style="margin-bottom:8px">
-          <label for="aportePosible">Chequeo inverso: si hoy podés aportar…</label>
-          <div class="inputbox"><span>US$</span><input id="aportePosible" type="number" min="0" step="100" value="500"><span>/ mes</span></div>
+      <!-- ===== CÁLCULO INVERSO ===== -->
+      <section class="card">
+        <h2>Al revés: ¿con lo que podés ahorrar, cuándo te retirás?</h2>
+        <p class="sub">A veces el aporte que da la cuenta no es el que se puede sostener en la vida real. Poné el monto que sí podés destinar todos los meses y el simulador calcula a qué edad llegás al capital objetivo.</p>
+
+        <div class="field" style="max-width:340px">
+          <label for="aportePosible">Ahorro mensual que podés sostener</label>
+          <div class="inputbox"><span>US$</span><input id="aportePosible" type="number" min="0" step="100" value="800"><span>/ mes</span></div>
         </div>
-        <p class="note" id="inverso" style="font-size:13.5px; color:var(--text)"></p>
+
+        <div class="kpi" style="border-top:3px solid var(--gold)">
+          <div class="k">Edad de retiro alcanzable</div>
+          <div class="v" id="inv-edad" style="font-size:clamp(22px,5.5vw,30px)">—</div>
+          <div class="s" id="inv-sub">—</div>
+        </div>
+        <p class="note" id="inverso" style="font-size:13.5px; color:var(--text); margin-top:13px"></p>
       </section>
 
       <!-- ===== METODOLOGÍA ===== -->
@@ -335,7 +346,7 @@
         <p class="sub">Para que el número se pueda defender frente a cualquier revisión.</p>
         <dl class="meth">
           <dt>Todo en dólares de hoy</dt>
-          <dd>Trabajamos con tasa real: el rendimiento nominal se descuenta por la inflación en dólares. Un 6% TNA con 2,5% de inflación equivale a <strong id="m-real">—</strong> real anual. Por eso el ingreso objetivo que cargás mantiene su poder de compra a lo largo de todo el plan.</dd>
+          <dd>Trabajamos con tasa real: el rendimiento nominal se descuenta por la inflación en dólares. Con los supuestos que cargaste, el rendimiento real es de <strong id="m-real">—</strong> anual. Por eso el ingreso objetivo que cargás mantiene su poder de compra a lo largo de todo el plan.</dd>
           <dt>Aportes crecientes</dt>
           <dd>El aporte calculado se ajusta cada año por inflación en dólares, de modo que el esfuerzo real sea constante. En el primer año el aporte nominal coincide con el que muestra el simulador.</dd>
           <dt>Capitalización mensual</dt>
@@ -531,8 +542,8 @@
       {n:'Plan base', d:base, base:true},
       {n:'Te retirás 5 años más tarde', d:calcular({eJ: base.eJ+5})},
       {n:'Ingreso objetivo un 20% menor', d:calcular({ing: base.ing*0.8})},
-      {n:'Rendimiento 8% TNA en USD', d:calcular({tna: 8})},
-      {n:'Rendimiento 4% TNA en USD', d:calcular({tna: 4})},
+      {n:'Rendimiento 10% TNA en USD', d:calcular({tna: 10})},
+      {n:'Rendimiento 6% TNA en USD', d:calcular({tna: 6})},
       {n:'Arrancás con el doble de capital', d:calcular({C0: base.C0*2})}
     ];
     var html='';
@@ -556,19 +567,29 @@
       if(Math.abs(d.r)<1e-12) return d.C0 + A*m;
       return d.C0*Math.pow(1+d.r,m) + A*(Math.pow(1+d.r,m)-1)/d.r;
     }
-    var lim=Math.round((Math.min(d.eV,95)-d.e0)*12), edad=null;
+    var lim=Math.round((Math.min(d.eV,95)-d.e0)*12), edad=null, cap=0;
     for(var m=0;m<=lim;m++){
       var e=d.e0+m/12;
-      if(acum(m) >= d.objetivoPara(e)-0.5){ edad=e; break; }
+      if(acum(m) >= d.objetivoPara(e)-0.5){ edad=e; cap=acum(m); break; }
     }
-    var txt;
     if(edad===null){
-      txt='Con '+fmt(A)+' por mes no se alcanza el capital objetivo antes de los '+Math.round(Math.min(d.eV,95))+' años. Conviene revisar el ingreso objetivo, el horizonte o el perfil de cartera.';
+      $('inv-edad').textContent='No se alcanza';
+      $('inv-sub').textContent='Con '+fmt(A)+' por mes no se llega al capital objetivo antes de los '+Math.round(Math.min(d.eV,95))+' años';
+      $('inverso').innerHTML='Las palancas son tres: estirar la edad de retiro, bajar el ingreso objetivo o revisar el perfil de cartera. Cualquiera de las tres cambia el resultado, y la primera suele ser la más efectiva.';
+      return;
+    }
+    var anios=Math.floor(edad), meses=Math.round((edad%1)*12);
+    if(meses===12){ anios+=1; meses=0; }
+    $('inv-edad').textContent = anios+' años'+(meses?' y '+meses+' meses':'');
+    $('inv-sub').textContent = 'Capital acumulado a esa edad: '+fmt(cap);
+    var dif = edad - d.eJ;
+    var txt;
+    if(Math.abs(dif) < 0.1){
+      txt='Ese aporte te deja exactamente en la edad de retiro que planteaste. El plan cierra.';
+    } else if(dif > 0){
+      txt='Son <strong>'+Math.round(dif)+' años más</strong> que los '+Math.round(d.eJ)+' que te planteaste. Si querés mantener la edad original, el aporte tendría que subir a '+(isFinite(d.aporte)?fmt(d.aporte):'—')+' por mes.';
     } else {
-      var dif = edad - d.eJ;
-      txt='Con '+fmt(A)+' por mes te podrías retirar a los <strong>'+Math.floor(edad)+' años y '+Math.round((edad%1)*12)+' meses</strong>'+
-          (Math.abs(dif)<0.1 ? ', exactamente la edad que definiste.' :
-           (dif>0 ? ', es decir '+Math.round(dif)+' años más tarde de lo planeado.' : ', '+Math.round(-dif)+' años antes de lo planeado.'));
+      txt='Son <strong>'+Math.round(-dif)+' años menos</strong> que los '+Math.round(d.eJ)+' que te planteaste: con ese ritmo de ahorro te podés retirar antes, o mantener la edad y vivir con un ingreso mayor.';
     }
     $('inverso').innerHTML=txt;
   }
